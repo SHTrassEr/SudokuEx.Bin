@@ -1,0 +1,6 @@
+.*
+!.gitignore
+~*
+*.zip
+build
+node_modules
