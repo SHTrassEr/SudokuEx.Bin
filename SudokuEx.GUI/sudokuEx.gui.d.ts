@@ -2,6 +2,7 @@
 interface ISudokuCell {
     setValue(value: number): void;
     getValue(): number;
+    getValueString(): string;
     getCellElement(): HTMLElement;
 }
 interface ISudokuControl {
@@ -13,13 +14,26 @@ declare module SudokuEx.GUI {
         private activeClass;
         private filledClass;
         private emptyClass;
+        private borderTopClass;
+        private borderRightClass;
+        private borderBottomClass;
+        private borderLeftClass;
+        private borderClass;
         private input;
         private element;
+        private colIndex;
+        private rowIndex;
         private maxValue;
         constructor(dimension: number, index: number);
         public getCellElement(): HTMLElement;
         public setValue(value: number): void;
+        public getValueString(): string;
         public getValue(): number;
+        private getBorderClass();
+        private getBorderRightClass();
+        private getBorderLeftClass();
+        private getBorderBottomClass();
+        private getBorderTopClass();
         private createInputElement();
         private createElement(input);
         private onCellFocus();
@@ -32,10 +46,11 @@ declare module SudokuEx.GUI {
         private container;
         private fieldElement;
         private cells;
-        private activeClass;
-        private filledClass;
-        private emptyClass;
+        private cellsCount;
+        private sudokuFieldClass;
+        private dimensionClass;
         constructor(dimension: number, container: HTMLElement);
+        public fieldToString(): string;
         private checkDimension(dimension);
         private createFieldElement(dimension);
     }

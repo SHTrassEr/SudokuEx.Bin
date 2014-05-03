@@ -73,8 +73,14 @@ declare module SudokuEx.Base {
     }
 }
 declare module SudokuEx.Base {
+    class SudokuIndexUtils {
+        static getColIndex(maxValue: number, index: number): number;
+        static getRowIndex(maxValue: number, index: number): number;
+    }
+}
+declare module SudokuEx.Base {
     class SudokuSolver implements ISudokuSolver {
-        private sudokuSolverFieldList;
+        private history;
         private currentSudokuSolver;
         private solutionList;
         private maxSolutionsCount;
@@ -85,8 +91,6 @@ declare module SudokuEx.Base {
         public getSolutionsCount(): number;
         public getAllSolutions(): number[][];
         private trySolve();
-        private pushField();
-        private popField();
         private iterate(goDeeper?);
         private processCell(cellID, goDeeper);
         private tryValues(cellID, values);

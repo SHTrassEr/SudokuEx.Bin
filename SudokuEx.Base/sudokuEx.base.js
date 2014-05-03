@@ -247,6 +247,25 @@ var SudokuEx;
 var SudokuEx;
 (function (SudokuEx) {
     (function (Base) {
+        var SudokuIndexUtils = (function () {
+            function SudokuIndexUtils() {
+            }
+            SudokuIndexUtils.getColIndex = function (maxValue, index) {
+                return index % maxValue;
+            };
+
+            SudokuIndexUtils.getRowIndex = function (maxValue, index) {
+                return Math.floor(index / maxValue);
+            };
+            return SudokuIndexUtils;
+        })();
+        Base.SudokuIndexUtils = SudokuIndexUtils;
+    })(SudokuEx.Base || (SudokuEx.Base = {}));
+    var Base = SudokuEx.Base;
+})(SudokuEx || (SudokuEx = {}));
+var SudokuEx;
+(function (SudokuEx) {
+    (function (Base) {
         var SudokuSolverField = (function () {
             function SudokuSolverField() {
             }
@@ -254,42 +273,21 @@ var SudokuEx;
                 this.sudokuField = sudokuField;
                 this.allValueList = _.range(1, sudokuField.getMaxValue() + 1);
                 this.blockListInfo = SudokuEx.Base.BlockListInfo.getInstance(this.sudokuField.getDimension());
-                this.blockValueRange = new Array(this.blockListInfo.getBlockCount());
-                this.updateBlockValueRange(this.blockListInfo.getBlockList());
-            };
-
-            SudokuSolverField.prototype.getBlockValueRange = function (blockID) {
-                return this.blockValueRange[blockID];
-            };
-
-            SudokuSolverField.prototype.updateBlockValueRange = function (blockList) {
-                var _this = this;
-                blockList.forEach(function (block, blockID) {
-                    _this.blockValueRange[blockID] = block.map(function (cellID) {
-                        return _this.sudokuField.getCellById(cellID);
-                    }).filter(function (cell) {
-                        return cell > 0;
-                    });
-                }, this);
             };
 
             SudokuSolverField.prototype.setCellValue = function (cellID, value) {
                 this.sudokuField.setCellByID(cellID, value);
-                this.updateBlockValueRange(this.blockListInfo.getBlockListByCellID(cellID));
             };
 
             SudokuSolverField.prototype.getVariantListForCell = function (cellID) {
                 var _this = this;
                 var blockList = this.blockListInfo.getBlockListByCellID(cellID);
-                var valueArrayList = blockList.map(function (block, blockID) {
-                    return block.map(function (cellID) {
-                        return _this.sudokuField.getCellById(cellID);
-                    }).filter(function (cell) {
-                        return cell > 0;
+                var usedValues = [];
+                _.each(blockList, function (block) {
+                    _.each(block, function (cellID) {
+                        return usedValues.push(_this.sudokuField.getCellById(cellID));
                     });
                 }, this);
-
-                var usedValues = _.flatten(valueArrayList);
                 return _.difference(this.allValueList, usedValues);
             };
 
@@ -308,19 +306,6 @@ var SudokuEx;
             SudokuSolverField.prototype.check = function () {
                 return this.sudokuField.check();
             };
-
-            SudokuSolverField.prototype.copy = function () {
-                var sudokuSolverField = new SudokuSolverField();
-                sudokuSolverField.sudokuField = this.sudokuField.copy();
-                sudokuSolverField.allValueList = this.allValueList;
-                sudokuSolverField.blockListInfo = this.blockListInfo;
-                sudokuSolverField.blockValueRange = new Array(this.blockValueRange.length);
-                for (var i = 0; i < this.blockValueRange.length; i++) {
-                    sudokuSolverField.blockValueRange[i] = this.blockValueRange[i].splice(0);
-                }
-
-                return sudokuSolverField;
-            };
             return SudokuSolverField;
         })();
 
@@ -336,7 +321,7 @@ var SudokuEx;
         var SudokuSolver = (function () {
             function SudokuSolver(field) {
                 this.solutionList = [];
-                this.sudokuSolverFieldList = [];
+                this.history = [];
                 var sudokuField = new SudokuEx.Base.SudokuField();
                 sudokuField.setField(field);
                 this.currentSudokuSolver = new SudokuSolverField();
@@ -391,16 +376,6 @@ var SudokuEx;
                 return solverStatus;
             };
 
-            SudokuSolver.prototype.pushField = function () {
-                this.sudokuSolverFieldList.push(this.currentSudokuSolver);
-                this.currentSudokuSolver = this.currentSudokuSolver.copy();
-            };
-
-            SudokuSolver.prototype.popField = function () {
-                this.currentSudokuSolver = this.sudokuSolverFieldList[this.sudokuSolverFieldList.length - 1];
-                this.sudokuSolverFieldList.pop();
-            };
-
             SudokuSolver.prototype.iterate = function (goDeeper) {
                 if (typeof goDeeper === "undefined") { goDeeper = false; }
                 var solverStatus = 1 /* notModified */;
@@ -423,6 +398,7 @@ var SudokuEx;
                 var values = this.currentSudokuSolver.getVariantListForCell(cellID);
                 if (values.length == 1) {
                     this.currentSudokuSolver.setCellValue(cellID, values[0]);
+                    this.history.push(cellID);
                     solverStatus = 0 /* modified */;
                 } else if (values.length == 0) {
                     solverStatus = 2 /* invalid */;
@@ -440,10 +416,11 @@ var SudokuEx;
             SudokuSolver.prototype.tryValues = function (cellID, values) {
                 var _this = this;
                 var solverStatus = 2 /* invalid */;
+                var historyLength = this.history.length;
 
                 values.some(function (value) {
-                    _this.pushField();
                     _this.currentSudokuSolver.setCellValue(cellID, value);
+                    _this.history.push(cellID);
                     if (cellID == 0) {
                         var i = 1;
                     }
@@ -452,8 +429,10 @@ var SudokuEx;
                         return true;
                     } else {
                         solverStatus = 2 /* invalid */;
-                        _this.currentSudokuSolver.setCellValue(cellID, 0);
-                        _this.popField();
+                        while (_this.history.length > historyLength) {
+                            _this.currentSudokuSolver.setCellValue(_this.history.pop(), 0);
+                        }
+
                         return false;
                     }
                 }, this);
