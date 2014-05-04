@@ -50,6 +50,7 @@ declare module SudokuEx.GUI {
         private sudokuFieldClass;
         private dimensionClass;
         constructor(dimension: number, container: HTMLElement);
+        public setField(field: number[]): void;
         public fieldToString(): string;
         private checkDimension(dimension);
         private createFieldElement(dimension);

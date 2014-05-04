@@ -4,13 +4,19 @@ declare module SudokuEx.Base {
         private static zeroChar;
         private static aChar;
         private static inputFilter;
-        static getCellIndex(rowIndex: number, colIndex: number, maxValue: number): number;
         static tryAddUniqValue(array: number[], value: number): boolean;
         static getDimenensionByMaxValue(maxValue: number): number;
         static getMaxValueByCellsCount(cellsCount: number): number;
         static parse(s: string): number[];
         static getCharFromValue(c: number): number;
         static getValueFromChar(c: number): number;
+    }
+}
+declare module SudokuEx.Base {
+    class SudokuIndexUtils {
+        static getColIndex(maxValue: number, index: number): number;
+        static getRowIndex(maxValue: number, index: number): number;
+        static getCellIndex(rowIndex: number, colIndex: number, maxValue: number): number;
     }
 }
 declare module SudokuEx.Base {
@@ -36,11 +42,12 @@ interface ISudokuField {
     setCell(rowIndex: number, colIndex: number, value: number): void;
     getCell(rowIndex: number, colIndex: number): number;
     getCellById(cellID: number): number;
+    setCellByID(cellID: number, value: number): void;
     getField(): number[];
     copy(): ISudokuField;
 }
 interface ISudokuGenerator {
-    generate(): number[][];
+    generate(dimension: number): ISudokuField;
 }
 interface ISudokuSolver {
     findSolution(): boolean;
@@ -73,18 +80,15 @@ declare module SudokuEx.Base {
     }
 }
 declare module SudokuEx.Base {
-    class SudokuIndexUtils {
-        static getColIndex(maxValue: number, index: number): number;
-        static getRowIndex(maxValue: number, index: number): number;
-    }
-}
-declare module SudokuEx.Base {
     class SudokuSolver implements ISudokuSolver {
         private history;
         private currentSudokuSolver;
         private solutionList;
         private maxSolutionsCount;
+        private safeCnt;
+        private iterationCount;
         constructor(field: number[]);
+        public setSafeCnt(safeCnt: number): void;
         public findSolution(): boolean;
         public findAllSolutions(maxSolutionsCount?: number): boolean;
         public getSolution(): number[];
@@ -94,5 +98,25 @@ declare module SudokuEx.Base {
         private iterate(goDeeper?);
         private processCell(cellID, goDeeper);
         private tryValues(cellID, values);
+    }
+}
+declare module SudokuEx.Base {
+    class SudokuSwapUtils {
+        static swapRow(field: ISudokuField, rowArea: number, row: number): void;
+        static swapCol(field: ISudokuField, colArea: number, col: number): void;
+        static swapRowArea(field: ISudokuField, rowArea: number): void;
+        static swapColArea(field: ISudokuField, colArea: number): void;
+        static swap(field: ISudokuField, iterationCount: number): void;
+        private static getRandomInt(max);
+        private static swapRowInternal(field, row1, row2);
+        private static swapColInternal(field, col1, col2);
+    }
+}
+declare module SudokuEx.Base {
+    class SudokuGenerator implements ISudokuGenerator {
+        private baseFields;
+        public generate(dimension: number): ISudokuField;
+        private getFilledCellIndex(field, filledCellIndex);
+        private getRandomInt(max);
     }
 }

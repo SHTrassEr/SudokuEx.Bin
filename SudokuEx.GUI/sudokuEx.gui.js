@@ -142,6 +142,12 @@ var SudokuEx;
 
                 container.appendChild(this.fieldElement);
             }
+            SudokuControl.prototype.setField = function (field) {
+                for (var i = 0; i < this.cellsCount; i++) {
+                    this.cells[i].setValue(field[i]);
+                }
+            };
+
             SudokuControl.prototype.fieldToString = function () {
                 var s = "";
                 for (var i = 0; i < this.cellsCount; i++) {

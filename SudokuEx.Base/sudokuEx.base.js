@@ -4,10 +4,6 @@ var SudokuEx;
         var SudokuUtils = (function () {
             function SudokuUtils() {
             }
-            SudokuUtils.getCellIndex = function (rowIndex, colIndex, maxValue) {
-                return rowIndex * maxValue + colIndex;
-            };
-
             SudokuUtils.tryAddUniqValue = function (array, value) {
                 if (_.contains(array, value))
                     return false;
@@ -79,6 +75,29 @@ var SudokuEx;
 var SudokuEx;
 (function (SudokuEx) {
     (function (Base) {
+        var SudokuIndexUtils = (function () {
+            function SudokuIndexUtils() {
+            }
+            SudokuIndexUtils.getColIndex = function (maxValue, index) {
+                return index % maxValue;
+            };
+
+            SudokuIndexUtils.getRowIndex = function (maxValue, index) {
+                return Math.floor(index / maxValue);
+            };
+
+            SudokuIndexUtils.getCellIndex = function (rowIndex, colIndex, maxValue) {
+                return rowIndex * maxValue + colIndex;
+            };
+            return SudokuIndexUtils;
+        })();
+        Base.SudokuIndexUtils = SudokuIndexUtils;
+    })(SudokuEx.Base || (SudokuEx.Base = {}));
+    var Base = SudokuEx.Base;
+})(SudokuEx || (SudokuEx = {}));
+var SudokuEx;
+(function (SudokuEx) {
+    (function (Base) {
         var BlockListInfo = (function () {
             function BlockListInfo(dimension) {
                 var maxValue = dimension * dimension;
@@ -99,9 +118,9 @@ var SudokuEx;
                     var squareStartRow = Math.floor(rowIndex / dimension) * dimension;
                     var squareStartCol = rowIndex % dimension * dimension;
                     _.times(maxValue, function (colIndex) {
-                        rowArray[colIndex] = SudokuEx.Base.SudokuUtils.getCellIndex(rowIndex, colIndex, maxValue);
-                        colArray[colIndex] = SudokuEx.Base.SudokuUtils.getCellIndex(colIndex, rowIndex, maxValue);
-                        squareArray[colIndex] = SudokuEx.Base.SudokuUtils.getCellIndex(squareStartRow + Math.floor(colIndex / dimension), squareStartCol + colIndex % dimension, maxValue);
+                        rowArray[colIndex] = SudokuEx.Base.SudokuIndexUtils.getCellIndex(rowIndex, colIndex, maxValue);
+                        colArray[colIndex] = SudokuEx.Base.SudokuIndexUtils.getCellIndex(colIndex, rowIndex, maxValue);
+                        squareArray[colIndex] = SudokuEx.Base.SudokuIndexUtils.getCellIndex(squareStartRow + Math.floor(colIndex / dimension), squareStartCol + colIndex % dimension, maxValue);
                         var d = blockListHash[rowArray[colIndex]];
 
                         blockListHash[rowArray[colIndex]].push(rowArray);
@@ -186,7 +205,7 @@ var SudokuEx;
             };
 
             SudokuField.prototype.setCell = function (rowIndex, colIndex, value) {
-                this.setCellByID(SudokuEx.Base.SudokuUtils.getCellIndex(rowIndex, colIndex, this.maxValue), value);
+                this.setCellByID(SudokuEx.Base.SudokuIndexUtils.getCellIndex(rowIndex, colIndex, this.maxValue), value);
             };
 
             SudokuField.prototype.setCellByID = function (cellID, value) {
@@ -241,25 +260,6 @@ var SudokuEx;
             return SudokuField;
         })();
         Base.SudokuField = SudokuField;
-    })(SudokuEx.Base || (SudokuEx.Base = {}));
-    var Base = SudokuEx.Base;
-})(SudokuEx || (SudokuEx = {}));
-var SudokuEx;
-(function (SudokuEx) {
-    (function (Base) {
-        var SudokuIndexUtils = (function () {
-            function SudokuIndexUtils() {
-            }
-            SudokuIndexUtils.getColIndex = function (maxValue, index) {
-                return index % maxValue;
-            };
-
-            SudokuIndexUtils.getRowIndex = function (maxValue, index) {
-                return Math.floor(index / maxValue);
-            };
-            return SudokuIndexUtils;
-        })();
-        Base.SudokuIndexUtils = SudokuIndexUtils;
     })(SudokuEx.Base || (SudokuEx.Base = {}));
     var Base = SudokuEx.Base;
 })(SudokuEx || (SudokuEx = {}));
@@ -321,12 +321,18 @@ var SudokuEx;
         var SudokuSolver = (function () {
             function SudokuSolver(field) {
                 this.solutionList = [];
+                this.safeCnt = 0;
+                this.iterationCount = 0;
                 this.history = [];
                 var sudokuField = new SudokuEx.Base.SudokuField();
                 sudokuField.setField(field);
                 this.currentSudokuSolver = new SudokuSolverField();
                 this.currentSudokuSolver.setSudokuField(sudokuField);
             }
+            SudokuSolver.prototype.setSafeCnt = function (safeCnt) {
+                this.safeCnt = safeCnt;
+            };
+
             SudokuSolver.prototype.findSolution = function () {
                 return this.findAllSolutions(1);
             };
@@ -356,6 +362,13 @@ var SudokuEx;
             };
 
             SudokuSolver.prototype.trySolve = function () {
+                this.iterationCount++;
+                if (this.safeCnt > 0) {
+                    if (this.iterationCount > this.safeCnt) {
+                        return 2 /* invalid */;
+                    }
+                }
+
                 var solverStatus = 0 /* modified */;
                 while (solverStatus == 0 /* modified */) {
                     solverStatus = this.iterate();
@@ -442,6 +455,172 @@ var SudokuEx;
             return SudokuSolver;
         })();
         Base.SudokuSolver = SudokuSolver;
+    })(SudokuEx.Base || (SudokuEx.Base = {}));
+    var Base = SudokuEx.Base;
+})(SudokuEx || (SudokuEx = {}));
+var SudokuEx;
+(function (SudokuEx) {
+    (function (Base) {
+        var SudokuSwapUtils = (function () {
+            function SudokuSwapUtils() {
+            }
+            SudokuSwapUtils.swapRow = function (field, rowArea, row) {
+                if (rowArea >= field.getDimension())
+                    throw "rowArea must be less then dimension";
+                if (row >= field.getDimension() - 1)
+                    throw "row1 must be less then dimension - 1";
+
+                var r1 = rowArea * field.getDimension() + row;
+                var r2 = r1 + 1;
+
+                SudokuEx.Base.SudokuSwapUtils.swapRowInternal(field, r1, r2);
+            };
+
+            SudokuSwapUtils.swapCol = function (field, colArea, col) {
+                if (colArea >= field.getDimension())
+                    throw "colArea must be less then dimension";
+                if (col >= field.getDimension() - 1)
+                    throw "row1 must be less then dimension - 1";
+
+                var c1 = colArea * field.getDimension() + col;
+                var c2 = c1 + 1;
+
+                SudokuEx.Base.SudokuSwapUtils.swapColInternal(field, c1, c2);
+            };
+
+            SudokuSwapUtils.swapRowArea = function (field, rowArea) {
+                if (rowArea >= field.getDimension() - 1)
+                    throw "rowArea must be less then dimension - 1";
+
+                var startRow1 = rowArea * field.getDimension();
+                var startRow2 = startRow1 + field.getDimension();
+
+                for (var i = 0; i < field.getDimension(); i++) {
+                    SudokuEx.Base.SudokuSwapUtils.swapRowInternal(field, startRow1 + i, startRow2 + i);
+                }
+            };
+
+            SudokuSwapUtils.swapColArea = function (field, colArea) {
+                if (colArea >= field.getDimension() - 1)
+                    throw "colArea1 must be less then dimension - 1";
+
+                var startCol1 = colArea * field.getDimension();
+                var startCol2 = startCol1 + field.getDimension();
+
+                for (var i = 0; i < field.getDimension(); i++) {
+                    SudokuEx.Base.SudokuSwapUtils.swapColInternal(field, startCol1 + i, startCol2 + i);
+                }
+            };
+
+            SudokuSwapUtils.swap = function (field, iterationCount) {
+                var dimension = field.getDimension();
+
+                for (var i = 0; i < iterationCount; i++) {
+                    var rd = SudokuEx.Base.SudokuSwapUtils.getRandomInt(dimension - 1);
+                    switch (SudokuEx.Base.SudokuSwapUtils.getRandomInt(4)) {
+                        case 0:
+                            SudokuEx.Base.SudokuSwapUtils.swapRow(field, SudokuEx.Base.SudokuSwapUtils.getRandomInt(dimension), rd);
+                            break;
+                        case 1:
+                            SudokuEx.Base.SudokuSwapUtils.swapCol(field, SudokuEx.Base.SudokuSwapUtils.getRandomInt(dimension), rd);
+                            break;
+                        case 2:
+                            SudokuEx.Base.SudokuSwapUtils.swapRowArea(field, rd);
+                            break;
+                        case 3:
+                            SudokuEx.Base.SudokuSwapUtils.swapColArea(field, rd);
+                            break;
+                    }
+                }
+            };
+
+            SudokuSwapUtils.getRandomInt = function (max) {
+                return Math.floor(Math.random() * max);
+            };
+
+            SudokuSwapUtils.swapRowInternal = function (field, row1, row2) {
+                for (var col = 0; col < field.getMaxValue(); col++) {
+                    var value = field.getCell(row1, col);
+                    field.setCell(row1, col, field.getCell(row2, col));
+                    field.setCell(row2, col, value);
+                }
+            };
+
+            SudokuSwapUtils.swapColInternal = function (field, col1, col2) {
+                for (var row = 0; row < field.getMaxValue(); row++) {
+                    var value = field.getCell(row, col1);
+                    field.setCell(row, col1, field.getCell(row, col2));
+                    field.setCell(row, col2, value);
+                }
+            };
+            return SudokuSwapUtils;
+        })();
+        Base.SudokuSwapUtils = SudokuSwapUtils;
+    })(SudokuEx.Base || (SudokuEx.Base = {}));
+    var Base = SudokuEx.Base;
+})(SudokuEx || (SudokuEx = {}));
+var SudokuEx;
+(function (SudokuEx) {
+    (function (Base) {
+        var SudokuGenerator = (function () {
+            function SudokuGenerator() {
+                this.baseFields = {
+                    "2": "1234 3412 2143 4321",
+                    "3": "835276149294815376761934528418769253659423817372581964187342695946158732523697481"
+                };
+            }
+            SudokuGenerator.prototype.generate = function (dimension) {
+                var field = SudokuEx.Base.SudokuUtils.parse(this.baseFields[dimension]);
+                var cellCount = field.length;
+                var filledCellCount = cellCount;
+                var iterationCount = dimension * dimension;
+                var tryCnt = 5;
+                var sudokuField = new SudokuEx.Base.SudokuField();
+
+                do {
+                    var index = this.getFilledCellIndex(field, this.getRandomInt(filledCellCount));
+                    var value = field[index];
+                    field[index] = 0;
+                    filledCellCount--;
+                    var solver = new SudokuEx.Base.SudokuSolver(field);
+                    solver.findAllSolutions(2);
+                    var solutionsCnt = solver.getAllSolutions().length;
+                    if (solutionsCnt > 1 || solutionsCnt == 0) {
+                        field[index] = value;
+                        filledCellCount++;
+                        tryCnt--;
+                    } else {
+                        sudokuField.setField(field);
+                        SudokuEx.Base.SudokuSwapUtils.swap(sudokuField, iterationCount);
+                        field = sudokuField.getField();
+                    }
+                } while(tryCnt > 0);
+
+                return sudokuField;
+            };
+
+            SudokuGenerator.prototype.getFilledCellIndex = function (field, filledCellIndex) {
+                var currentIndex = 0;
+                for (var i = 0; i < field.length; i++) {
+                    if (field[i] == 0) {
+                        continue;
+                    }
+
+                    if (currentIndex == filledCellIndex) {
+                        return i;
+                        break;
+                    }
+
+                    currentIndex++;
+                }
+            };
+
+            SudokuGenerator.prototype.getRandomInt = function (max) {
+                return Math.floor(Math.random() * max);
+            };
+            return SudokuGenerator;
+        })();
+        Base.SudokuGenerator = SudokuGenerator;
     })(SudokuEx.Base || (SudokuEx.Base = {}));
     var Base = SudokuEx.Base;
 })(SudokuEx || (SudokuEx = {}));
